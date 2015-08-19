@@ -3,4 +3,5 @@ hadoop-example/build
 pig-connector/build
 squeal/build
 .build.properties
-
+.idea
+target

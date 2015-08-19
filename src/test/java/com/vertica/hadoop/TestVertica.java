@@ -76,7 +76,7 @@ public class TestVertica extends VerticaTestCase {
     }
 
     VerticaInputSplit input = new VerticaInputSplit(input_query,
-        segment_params, start, end);
+        segment_params);
     input.configure(getVerticaJob().getConfiguration());
 
     return input;
@@ -198,6 +198,8 @@ public class TestVertica extends VerticaTestCase {
   private String recordTest(List<Integer> types, List<Object> values,
       DataOutputBuffer out, DataInputBuffer in, boolean date_string)
       throws IOException {
+
+
     VerticaRecord record = new VerticaRecord(null, types, values, date_string);
 
     // TODO: test values as hashmap of column names
@@ -229,7 +231,7 @@ public class TestVertica extends VerticaTestCase {
       }
 
     // data in sql form
-    return record.toSQLString();
+    return record.toString();
   }
 
   public void testVerticaSplit() throws Exception {
@@ -272,8 +274,8 @@ public class TestVertica extends VerticaTestCase {
     VerticaRecord value = reader.getCurrentValue();
 
     assertEquals("Key should be 1 for first record", key.get(), 1);
-    assertEquals("Result type should be VARCHAR", ((Integer)value.getTypes().get(0)).intValue(), Types.VARCHAR);
-    assertEquals("Result value should be THREE", value.getValues().get(0), "THREE");
+    assertEquals("Result type should be VARCHAR", ((Integer)value.getType(0)).intValue(), Types.VARCHAR);
+    assertEquals("Result value should be THREE", value.get(0), "THREE");
     reader.close();
   }
 
@@ -336,7 +338,7 @@ public class TestVertica extends VerticaTestCase {
     VerticaOutputFormat.setOutput(job, "mrtarget", true, "a int", "b boolean",
         "c char(1)", "d date", "f float", "t timestamp", "v varchar",
         "z varbinary");
-    output.checkOutputSpecs(job, true);
+    output.checkOutputSpecs(job);
     TaskAttemptContext context = new TaskAttemptContext(job.getConfiguration(),
         new TaskAttemptID());
     VerticaRecordWriter writer = (VerticaRecordWriter) output
@@ -345,15 +347,15 @@ public class TestVertica extends VerticaTestCase {
     Text table = new Text();
     table.set("mrtarget");
 
-    VerticaRecord record = VerticaOutputFormat.getValue(job.getConfiguration());
-    record.set(0, 125, true);
-    record.set(1, true, true);
-    record.set(2, 'c', true);
-    record.set(3, Calendar.getInstance().getTime(), true);
-    record.set(4, 234.526, true);
-    record.set(5, Calendar.getInstance().getTime(), true);
-    record.set(6, "foobar string", true);
-    record.set(7, new byte[10], true);
+    VerticaRecord record = VerticaOutputFormat.get(job.getConfiguration());
+    record.set(0, 125);
+    record.set(1, true);
+    record.set(2, 'c');
+    record.set(3, Calendar.getInstance().getTime());
+    record.set(4, 234.526);
+    record.set(5, Calendar.getInstance().getTime());
+    record.set(6, "foobar string");
+    record.set(7, new byte[10]);
 
     writer.write(table, record);
     writer.close(null);
