@@ -2,45 +2,24 @@
 
 package com.vertica.hadoop;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.Date;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.sql.Types;
-import java.text.ParseException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Vector;
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.BooleanWritable;
-import org.apache.hadoop.io.ByteWritable;
-import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.VIntWritable;
-import org.apache.hadoop.io.VLongWritable;
-import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.*;
 import org.apache.hadoop.util.StringUtils;
 
-//import com.vertica.jdbc.VerticaDayTimeInterval;
-//import com.vertica.jdbc.VerticaYearMonthInterval;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.sql.*;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
 
 /**
  * Encapsulates a record read from or to be written to Vertica.
@@ -56,7 +35,7 @@ import org.apache.hadoop.util.StringUtils;
  * into various formats.
  * 
  */
-public class VerticaRecord implements Writable {
+public class VerticaRecord implements Writable, Serializable {
   	private static final Log LOG = LogFactory.getLog("com.vertica.hadoop");
 	/**
 	 * No. of columns in a record.
@@ -90,11 +69,26 @@ public class VerticaRecord implements Writable {
 	 * Available mainly for Hadoop framework.
 	 */ 
 	public VerticaRecord() {
-		names = new Vector<String>();
-		types = new Vector<Integer>();
-		values = new Vector<Object>();
-		nameMap = new HashMap<String, Integer>();
+		names = new Vector<>();
+		types = new Vector<>();
+		values = new Vector<>();
+		nameMap = new HashMap<>();
 	}
+
+	/**
+	 * Because sometimes we don't want to have to query the database 10000000000000000000000x for the same thing
+	 */
+	public VerticaRecord(Vector<String> namesV, Vector<Integer> typesV, HashMap<String, Integer> namesM) {
+		assert names.size() == types.size() && types.size() == nameMap.size();
+
+		columns = namesV.size();
+		this.names = namesV;
+		this.types = typesV;
+		this.values = new Vector<>(namesV.size());
+		this.values.setSize(namesV.size());
+		this.nameMap = namesM;
+	}
+
 
 	/**
 	 * Constructor used when data is transferred to Vertica.
@@ -105,8 +99,7 @@ public class VerticaRecord implements Writable {
 	 * @throws SQLException JDBC driver or Vertica encounters an error.
 	 */
 
-	public VerticaRecord(Configuration conf) 
-		throws ClassNotFoundException, SQLException, IOException {
+	public VerticaRecord(Configuration conf) throws ClassNotFoundException, SQLException, IOException {
 		VerticaConfiguration config = new VerticaConfiguration(conf);
 		String outTable = config.getOutputTableName();
 		Connection conn = config.getConnection(true);
