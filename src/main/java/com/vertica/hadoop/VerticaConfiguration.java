@@ -30,11 +30,15 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Arrays;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.StringUtils;
+
+import javax.sql.DataSource;
 
 /**
  * A container for configuration property names for jobs with Vertica
@@ -311,8 +315,7 @@ public class VerticaConfiguration {
 	  * @throws ClassNotFoundException
 	  * @throws SQLException
 	  */
-	public Connection getConnection(boolean output) throws IOException,
-      ClassNotFoundException, SQLException {
+	public Connection getConnection(boolean output) throws IOException, ClassNotFoundException, SQLException {
     	try {
 			Class.forName(VERTICA_DRIVER_CLASS);
 		} catch (ClassNotFoundException e) {
@@ -359,12 +362,16 @@ public class VerticaConfiguration {
 			throw new IOException("Vertica requires a username defined by "
 					+ USERNAME_PROP);
 
-		if (port == null)
-			throw new IOException("Vertica requires a port defined by "
-					+ PORT_PROP);
-		Connection connection = DriverManager.getConnection("jdbc:vertica://"
-				+ hosts[r.nextInt(hosts.length)] + ":" + port + "/" + database + "?loglevel=" + level, 
-				 user, pass);
+        Properties props = new Properties();
+        props.put("user", user);
+        props.put("password", pass);
+        props.put("ConnectionLoadBalance", 1);
+
+		if (port == null) throw new IOException("Vertica requires a port defined by " + PORT_PROP);
+		Connection connection = DriverManager.getConnection(
+            "jdbc:vertica://" + hosts[r.nextInt(hosts.length)] + ":" + port + "/" + database + "?loglevel=" + level,
+            props
+        );
 
 		// if output is being written auto-commit must be disabled to prevent individual batches within
 		// a task from being committed. Instead we want all the batches in a task to be committed or
@@ -375,6 +382,39 @@ public class VerticaConfiguration {
 
 		return connection;
 	}
+
+    /*
+	public DataSource getDataSource() {
+		try {
+			Class.forName(VERTICA_DRIVER_CLASS);
+		} catch (ClassNotFoundException e) {
+			try {
+				Class.forName(VERTICA_DRIVER_CLASS_41);
+			} catch (ClassNotFoundException e2) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		String host = conf.get(HOSTNAMES_PROP);
+		String user = conf.get(USERNAME_PROP);
+		String pass = conf.get(PASSWORD_PROP);
+		String database = conf.get(DATABASE_PROP);
+		String port = conf.get(PORT_PROP);
+		String level = conf.get(LOG_LEVEL_PROP);
+
+		if((level == null) || (level == "")){
+			level = LOG_LEVEL_PROP_DEFAULT;
+		}
+
+		HikariConfig config = new HikariConfig();
+		config.setJdbcUrl("jdbc:vertica://" + host + ":" + port + "/" + database);
+		config.setUsername(user);
+		config.setPassword(pass);
+        config.setAutoCommit(false);
+
+		new HikariDataSource(config);
+	}
+    */
 
 	public String getInputQuery() {
 		return conf.get(QUERY_PROP);
