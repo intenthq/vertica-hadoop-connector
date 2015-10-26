@@ -4,7 +4,7 @@ name := "vertica-hadoop-connector"
 
 organization := "com.intenthq.vertica"
 
-version := "0.0.2"
+version := "0.0.3"
 
 crossPaths := false
 
@@ -20,11 +20,12 @@ scalacOptions += "-target:jvm-1.7"
 
 javacOptions ++= Seq("-source", "1.7", "-target", "1.7")
 
-libraryDependencies += "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopVer % "provided"
-
-libraryDependencies += "org.apache.hadoop" % "hadoop-common" % hadoopVer % "provided"
-
-libraryDependencies += "junit" % "junit" % "4.12" % "test"
+libraryDependencies ++= Seq(
+  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopVer % "provided",
+  "org.apache.hadoop" % "hadoop-common" % hadoopVer % "provided",
+  "com.zaxxer"        % "HikariCP"      % "2.4.1",
+  "junit" % "junit" % "4.12" % "test"
+)
 
 publishTo := {
   val nexus = "https://oss.sonatype.org/"

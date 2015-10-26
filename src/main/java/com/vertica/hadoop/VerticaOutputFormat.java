@@ -43,15 +43,17 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import javax.sql.DataSource;
+
 /**
  * Output formatter for loading data to Vertica
  * 
  */
 public class VerticaOutputFormat extends OutputFormat<Text, VerticaRecord> {
-  private static final Log LOG = LogFactory.getLog(VerticaOutputFormat.class);
+  	private static final Log LOG = LogFactory.getLog(VerticaOutputFormat.class);
 
-  /* JDBC connection is initialized on-demand and re-used */
-  private Connection connection;
+	/* JDBC connection is initialized on-demand and re-used */
+	private Connection connection;
 
   /**
 	  * Set the output table
@@ -149,17 +151,12 @@ public class VerticaOutputFormat extends OutputFormat<Text, VerticaRecord> {
 	}
 
   	/** {@inheritDoc} */
-	public RecordWriter<Text, VerticaRecord> getRecordWriter(
-			TaskAttemptContext context) throws IOException {
+	public RecordWriter<Text, VerticaRecord> getRecordWriter(TaskAttemptContext context) throws IOException {
+		VerticaConfiguration config = new VerticaConfiguration(context.getConfiguration());
 
-		VerticaConfiguration config = new VerticaConfiguration(
-				context.getConfiguration());
-
-		String name = context.getJobName();
 		String table = config.getOutputTableName();
 		try {
-			return new VerticaRecordWriter(
-        getConnection(context.getConfiguration()), table, config.getBatchSize());
+			return new VerticaRecordWriter(getConnection(context.getConfiguration()), table, config.getBatchSize());
 		} catch (SQLException e) {
 			throw new IOException(e);
 		}

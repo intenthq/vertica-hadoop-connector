@@ -21,7 +21,6 @@ package com.vertica.hadoop;
 
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
 
@@ -33,69 +32,27 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 public class VerticaRecordWriter extends RecordWriter<Text, VerticaRecord> {
   	private static final Log LOG = LogFactory.getLog("com.vertica.hadoop");
-	
-	Relation vTable = null;
-	String schemaName = null;
+
+	final Relation vTable;
 	Connection connection = null;
 	PreparedStatement statement = null;
-	long batchSize = 0;
+	final long batchSize;
 	long numRecords = 0;
 
-	public VerticaRecordWriter(Connection conn, String writerTable, long batch)
-		throws SQLException 
-	{
+	public VerticaRecordWriter(Connection conn, String writerTable, long batch) throws SQLException {
 		this.connection = conn;
-		batchSize = batch;
-    
-		vTable = new Relation(writerTable);
- 
-		StringBuilder sb = new StringBuilder();
-		sb.append("INSERT INTO ");
-		sb.append(vTable.getQualifiedName());
-
-		StringBuilder values = new StringBuilder();
-		values.append(" VALUES(");
-		sb.append("(");
-
-		String metaStmt = "select ordinal_position, column_name, data_type, is_identity, data_type_name " +
-			"from v_catalog.odbc_columns " + 
-			"where schema_name = ? and table_name = ? "
-			+ "order by ordinal_position;";
-
-		PreparedStatement stmt = conn.prepareStatement(metaStmt);
-		stmt.setString(1, vTable.getSchema());
-		stmt.setString(2, vTable.getTable());
-
-		ResultSet rs = stmt.executeQuery();
-		boolean addComma = false;
-		while (rs.next()) {
-			if (!rs.getBoolean(4)) {
-				if (addComma) {
-					sb.append(',');
-					values.append(',');
-				}
-				sb.append(rs.getString(2));
-				values.append('?');
-				addComma = true;
-			} else {
-				LOG.debug("Skipping identity column " + rs.getString(4));
-			}
-		}
-
-		sb.append(')');
-		values.append(')');
-		sb.append(values.toString());
-
-		statement = conn.prepareStatement(sb.toString());
+		this.batchSize = batch;
+		this.vTable = new Relation(writerTable);
+		this.statement = conn.prepareStatement(StatementFactory.insert(conn, writerTable));
 	}
 
 	@Override
 	public void close(TaskAttemptContext context) throws IOException {
 		try {
-      // committing and closing the connection is handled by the VerticaTaskOutputCommitter
-      if (LOG.isDebugEnabled()) { LOG.debug("executeBatch called during close"); }
+		  	// committing and closing the connection is handled by the VerticaTaskOutputCommitter
+		  	if (LOG.isDebugEnabled()) { LOG.debug("executeBatch called during close"); }
 			statement.executeBatch();
-  } catch (SQLException e) {
+  		} catch (SQLException e) {
 			throw new IOException(e);
 		}
 	}
@@ -103,14 +60,13 @@ public class VerticaRecordWriter extends RecordWriter<Text, VerticaRecord> {
 	@Override
 	public void write(Text table, VerticaRecord record) throws IOException {
 		if (table != null && !table.toString().equals(vTable.getTable()))
-			throw new IOException("Writing to different table " + table.toString()
-					+ ". Expecting " + vTable.getTable());
+			throw new IOException("Writing to different table " + table.toString() + ". Expecting " + vTable.getTable());
 
 		try {
 			record.write(statement);
 			numRecords++;
 			if (numRecords % batchSize == 0) {
-        if (LOG.isDebugEnabled()) { LOG.debug("executeBatch called on batch of size " + batchSize); }
+        		if (LOG.isDebugEnabled()) { LOG.debug("executeBatch called on batch of size " + batchSize); }
 				statement.executeBatch();
 			}
 		} catch (Exception e) {
